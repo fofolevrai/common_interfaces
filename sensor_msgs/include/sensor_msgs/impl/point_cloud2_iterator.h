@@ -32,6 +32,12 @@
 #include <stdlib.h>
 #include <sensor_msgs/msg/point_cloud2.h>
 
+typedef struct _pointCloud2Generator_t_{
+    char * deviceName;
+    rosidl_runtime_c__String * pointFieldCapacity;
+    uint16_t nbr_pointFields; 
+} pointCloud2Generator_t;
+
 /// @brief Add point field to PointCLoud2 message
 /// @param cloud_msg PointCloud2 message
 /// @param field_to_add The point field to add to point cloud frame

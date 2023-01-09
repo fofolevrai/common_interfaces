@@ -30,6 +30,7 @@
 // https://github.com/ros/common_msgs/blob/50ee957/sensor_msgs/include/sensor_msgs/impl/point_cloud2_iterator.h
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <std_msgs/msg/string.h>
 #include <sensor_msgs/msg/point_cloud2.h>
 
@@ -84,7 +85,7 @@ static inline int8_t sizeOfPointField(uint8_t datatype)
 /// @param cloud_msg PointCloud2 message
 /// @param field_to_add The point field to add to point cloud frame
 /// @return Operation status
-bool addPointField(sensor_msgs__msg__PointCloud2 *cloud_msg, sensor_msgs__msg__PointField field_to_add)
+bool addPointField(sensor_msgs__msg__PointCloud2 *cloud_msg, sensor_msgs__msg__PointField field_to_add, uint32_t * offset)
 {
     rcutils_allocator_t allocator = rcutils_get_default_allocator();
     sensor_msgs__msg__PointField *data = NULL;
@@ -149,6 +150,9 @@ bool addPointField(sensor_msgs__msg__PointCloud2 *cloud_msg, sensor_msgs__msg__P
         return false;
     }
 
+    //  Update offset
+    *offset += (cloud_msg->fields.data[cloud_msg->fields.size].count * sizeOfPointField(cloud_msg->fields.data[cloud_msg->fields.size].datatype));
+
     //  Update field size
     cloud_msg->fields.size++;
 
@@ -174,13 +178,10 @@ bool addPointField(sensor_msgs__msg__PointCloud2 *cloud_msg,
         .datatype = datatype,
         .offset = *offset};
     
-    if(!addPointField(cloud_msg, field_to_add))
+    if(!addPointField(cloud_msg, field_to_add, offset))
     {
         return false;
     }
-
-    //  Update offset
-    *offset += (count * sizeOfPointField(datatype));
 
     return true;
 }
@@ -321,6 +322,11 @@ inline bool Resize(sensor_msgs__msg__PointCloud2 *cloud_msg, uint32_t width, uin
 /// @return 
 inline bool Clear(sensor_msgs__msg__PointCloud2 *cloud_msg)
 {
+    cloud_msg->height = 0;
+    cloud_msg->width = 0;
+    cloud_msg->row_step = 0;
+    cloud_msg->is_dense = false;
+
     return rosidl_runtime_c__uint8__Sequence__fini(cloud_msg->data);
 }
 
@@ -334,10 +340,11 @@ bool SetPointCloud2Fields(sensor_msgs__msg__PointCloud2 *cloud_msg,
                             uint32_t fieldPoint_size)
 {
     bool success = true;
+    uint32_t offset = 0;
 
     for(uint32_t i = 0; i < fieldPoint_size; i++)
     {
-        if(!(success &= addPointField(cloud_msg, fieldPoints_array[i])))
+        if(!(success &= addPointField(cloud_msg, fieldPoints_array[i], &offset)))
         {
             break;
         }
@@ -346,12 +353,70 @@ bool SetPointCloud2Fields(sensor_msgs__msg__PointCloud2 *cloud_msg,
     return success;
 }
 
-bool SetPointCloud2Fields(sensor_msgs__msg__PointCloud2 *cloud_msg,
-                            sensor_msgs__msg__PointField * fieldPoints_array,
-                            uint32_t fieldPoint_size)
+
+const pointCloud2Generator_t customDevice[] = {
+    {.deviceName = "xyz", .pointFieldCapacity = {"x", "y", "z"}, .nbr_pointFields = 3},
+    {.deviceName = "rgb_camera", .pointFieldCapacity = {"rgb"}, .nbr_pointFields = 1},
+    {.deviceName = "rgbd_camera", .pointFieldCapacity = {"x", "y", "z", "rgb"}, .nbr_pointFields = 4},
+    {.deviceName = "custom_vl53_tof_all", .pointFieldCapacity = {"x", "y", "z", "intensity", "vl_ambient", "vl_target_nbr", "vl_spad_nbr", "vl_sigma", "vl_reflectance", "vl_status"}, .nbr_pointFields = 10},
+    {.deviceName = "custom_vl53_tof_min", .pointFieldCapacity = {"x", "y", "z", "intensity", "vl_status"}, .nbr_pointFields = 5},
+    
+    //  Keep at the tail
+    NULL
+};
+
+static const sensor_msgs__msg__PointField communPointFields[] = {
+    {.name = {.data="x", .size=2, .capacity=2}, .count = 1, .datatype = sensor_msgs__msg__PointField__FLOAT32, .offset = 0},  //  0 => abritary offset
+    {.name = {.data="y", .size=2, .capacity=2}, .count = 1, .datatype = sensor_msgs__msg__PointField__FLOAT32, .offset = 0},
+    {.name = {.data="z", .size=2, .capacity=2}, .count = 1, .datatype = sensor_msgs__msg__PointField__FLOAT32, .offset = 0},
+    {.name = {.data="rgb", .size=4, .capacity=4}, .count = 3, .datatype = sensor_msgs__msg__PointField__UINT8, .offset = 0},
+    {.name = {.data="rgba", .size=5, .capacity=5}, .count = 3, .datatype = sensor_msgs__msg__PointField__UINT8, .offset = 0},
+/*  ST VL custom Point Cloud type */
+    {.name = {.data="vl_ambient", .size=11, .capacity=11}, .count = 1, .datatype = sensor_msgs__msg__PointField__UINT32, .offset = 0},
+    {.name = {.data="vl_target_nbr", .size=14, .capacity=14}, .count = 1, .datatype = sensor_msgs__msg__PointField__UINT8, .offset = 0},
+    {.name = {.data="vl_spad_nbr", .size=12, .capacity=12}, .count = 1, .datatype = sensor_msgs__msg__PointField__UINT32, .offset = 0},
+    {.name = {.data="intensity", .size=10, .capacity=10}, .count = 1, .datatype = sensor_msgs__msg__PointField__UINT32, .offset = 0},
+    {.name = {.data="vl_sigma", .size=9, .capacity=9}, .count = 1, .datatype = sensor_msgs__msg__PointField__UINT16, .offset = 0},
+    {.name = {.data="vl_reflectance", .size=15, .capacity=15}, .count = 1, .datatype = sensor_msgs__msg__PointField__UINT8, .offset = 0},
+    {.name = {.data="vl_status", .size=10, .capacity=10}, .count = 1, .datatype = sensor_msgs__msg__PointField__UINT8, .offset = 0},
+
+    //  Keep at the tail
+    NULL
+};
+
+bool SetPointCloud2FromDevice(sensor_msgs__msg__PointCloud2 *cloud_msg,
+                            const char * deviceName)
 {
-    // switch()
-    // {
-    //     //  $$SFossaert : TODO
-    // }
+    //  Point field offset
+    uint32_t offset = 0;
+    uint16_t counter = 0, k = 0, l = 0;
+    //  Clear PointCloud data field
+    Clear(cloud_msg);
+
+    while(NULL != &customDevice[counter])
+    {
+        if(0 == strcmp(customDevice[counter].deviceName, deviceName))
+        {
+            for(uint32_t j = 0; j < customDevice[counter].nbr_pointFields; j++)
+            {
+                while(NULL != &communPointFields[k])
+                {
+                    if(0 == memcmp(communPointFields[k].name.data, &(customDevice[counter].pointFieldCapacity[j]), communPointFields[k].name.size))
+                    {
+                        if(!addPointField(cloud_msg, communPointFields[0], &offset))
+                        {
+                            //  Issue while adding point field
+                            return false;
+                        }
+                        break;
+                    }
+                    //  Increase counter
+                    k++;
+                }
+
+            }
+
+        }
+        else if()
+    }
 }
