@@ -88,7 +88,8 @@ if(cpp_typesupport_target)
     ament_add_gtest(test_sensor_msgs
       test/test_image_encodings.cpp
       test/test_pointcloud_conversion.cpp
-      test/test_pointcloud_iterator.cpp)
+      test/test_pointcloud_iterator.cpp
+      test/test_pointcloud_iterator_c_implementation.c)
     target_link_libraries(test_sensor_msgs ${PROJECT_NAME}_library)
   endif()
 endif()

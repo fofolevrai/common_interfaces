@@ -2,6 +2,11 @@
 Changelog for package sensor_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+4.6.2 (2023-01-10)
+------------------
+* Add C implementation of PointCloud2 iterator
+* Contributors: fofolevrai
+
 4.6.1 (2022-11-02)
 ------------------
 * Add NV21 and NV24 to colour formats (`#205 <https://github.com/ros2/common_interfaces/issues/205>`_)
