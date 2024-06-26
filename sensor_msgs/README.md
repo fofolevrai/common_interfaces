@@ -15,6 +15,11 @@ This package provides some common C++ functionality relating to manipulating a c
 * [point_cloud2_iterator.hpp](include/sensor_msgs/point_cloud2_iterator.hpp): Tools for modifying and parsing PointCloud2 messages.
 * [point_field_conversion.hpp](include/sensor_msgs/point_field_conversion.hpp): A type to enum mapping for the different PointField types, and methods to read and write in a PointCloud2 buffer for the different PointField types.
 
+## sensor_msgs c API
+This package provides some common C functionality relating *PointCloud2* sensor_msgs messages manipulation.
+
+* [point_cloud2_iterator.h](include/sensor_msgs/point_cloud2_iterator.h): C implementation of [point_cloud2_iterator.hpp](include/sensor_msgs/point_cloud2_iterator.hpp). Please checkout [pc2_c_iterator_readme.md](include/sensor_msgs/pc2_c_iterator_readme.md) for usage details.
+
 ## Messages (.msg)
 * [BatteryState](msg/BatteryState.msg): Describes the power state of the battery.
 * [CameraInfo](msg/CameraInfo.msg): Meta information for a camera.
